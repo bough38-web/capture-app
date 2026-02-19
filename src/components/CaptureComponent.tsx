@@ -1,14 +1,22 @@
 "use client";
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, MouseEvent } from 'react';
 
 export default function CaptureComponent() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
+
+  // Selection state
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [startPos, setStartPos] = useState({ x: 0, y: 0 });
+  const [currentPos, setCurrentPos] = useState({ x: 0, y: 0 });
+  const [selection, setSelection] = useState<{ x: number, y: number, width: number, height: number } | null>(null);
 
   const startSharing = async () => {
     try {
@@ -26,7 +34,6 @@ export default function CaptureComponent() {
       }
       setIsCapturing(true);
 
-      // Handle stream end (user clicks "Stop Sharing")
       mediaStream.getVideoTracks()[0].onended = () => {
         stopSharing();
       };
@@ -45,21 +52,85 @@ export default function CaptureComponent() {
       videoRef.current.srcObject = null;
     }
     setIsCapturing(false);
+    setSelection(null);
+  };
+
+  const handleMouseDown = (e: MouseEvent) => {
+    if (!isCapturing || !containerRef.current) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    setIsSelecting(true);
+    setStartPos({ x, y });
+    setCurrentPos({ x, y });
+    setSelection(null);
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isSelecting || !containerRef.current) return;
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+    const y = Math.max(0, Math.min(e.clientY - rect.top, rect.height));
+
+    setCurrentPos({ x, y });
+  };
+
+  const handleMouseUp = () => {
+    if (!isSelecting) return;
+
+    const x = Math.min(startPos.x, currentPos.x);
+    const y = Math.min(startPos.y, currentPos.y);
+    const width = Math.abs(currentPos.x - startPos.x);
+    const height = Math.abs(currentPos.y - startPos.y);
+
+    if (width > 5 && height > 5) {
+      setSelection({ x, y, width, height });
+    } else {
+      setSelection(null);
+    }
+
+    setIsSelecting(false);
   };
 
   const takeSnapshot = () => {
-    if (videoRef.current && canvasRef.current) {
+    if (videoRef.current && canvasRef.current && containerRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-
       const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL('image/png');
-        setCapturedImage(dataUrl);
+
+      if (!ctx) return;
+
+      // Calculate ratios between displayed video and actual video resolution
+      const displayWidth = video.clientWidth;
+      const displayHeight = video.clientHeight;
+      const actualWidth = video.videoWidth;
+      const actualHeight = video.videoHeight;
+
+      const scaleX = actualWidth / displayWidth;
+      const scaleY = actualHeight / displayHeight;
+
+      if (selection) {
+        // Capture specific region
+        canvas.width = selection.width * scaleX;
+        canvas.height = selection.height * scaleY;
+
+        ctx.drawImage(
+          video,
+          selection.x * scaleX, selection.y * scaleY, selection.width * scaleX, selection.height * scaleY,
+          0, 0, canvas.width, canvas.height
+        );
+      } else {
+        // Capture full frame
+        canvas.width = actualWidth;
+        canvas.height = actualHeight;
+        ctx.drawImage(video, 0, 0, actualWidth, actualHeight);
       }
+
+      const dataUrl = canvas.toDataURL('image/png');
+      setCapturedImage(dataUrl);
     }
   };
 
@@ -83,7 +154,10 @@ export default function CaptureComponent() {
           ) : (
             <>
               <button className="btn btn-primary" onClick={takeSnapshot}>
-                <span>📸</span> 캡쳐하기
+                <span>📸</span> {selection ? '선택 영역 캡쳐' : '전체 캡쳐'}
+              </button>
+              <button className="btn btn-secondary" onClick={() => { setSelection(null); }}>
+                <span>🔄</span> 선택 해제
               </button>
               <button className="btn btn-secondary" onClick={stopSharing}>
                 <span>⏹️</span> 중지
@@ -94,9 +168,36 @@ export default function CaptureComponent() {
 
         {error && <p style={{ color: '#ef4444', marginBottom: '1rem', textAlign: 'center' }}>{error}</p>}
 
-        <div className="preview-container">
+        <div
+          ref={containerRef}
+          className="preview-container"
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          style={{ position: 'relative' }}
+        >
           <video ref={videoRef} autoPlay playsInline muted />
+
+          {isCapturing && (
+            <div className="selection-overlay">
+              {(isSelecting || selection) && (
+                <div
+                  className="selection-box"
+                  style={{
+                    left: isSelecting ? Math.min(startPos.x, currentPos.x) : selection?.x,
+                    top: isSelecting ? Math.min(startPos.y, currentPos.y) : selection?.y,
+                    width: isSelecting ? Math.abs(currentPos.x - startPos.x) : selection?.width,
+                    height: isSelecting ? Math.abs(currentPos.y - startPos.y) : selection?.height,
+                  }}
+                />
+              )}
+            </div>
+          )}
         </div>
+
+        <p className="subtitle" style={{ fontSize: '0.9rem', marginTop: '1rem' }}>
+          {isCapturing ? '💡 마우스로 드래그하여 캡쳐할 영역을 선택할 수 있습니다.' : '화면 공유를 시작하면 영역 선택이 가능합니다.'}
+        </p>
 
         <canvas ref={canvasRef} className="canvas-preview" />
       </div>
