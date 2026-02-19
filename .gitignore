@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Firebase service account keys (never commit these!)
+캡쳐앱\ 키/
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
