@@ -12,11 +12,27 @@ export default function CaptureComponent() {
   const [error, setError] = useState<string | null>(null);
   const [isCapturing, setIsCapturing] = useState(false);
 
+  // Password state
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [passwordError, setPasswordError] = useState(false);
+
   // Selection state
   const [isSelecting, setIsSelecting] = useState(false);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [currentPos, setCurrentPos] = useState({ x: 0, y: 0 });
   const [selection, setSelection] = useState<{ x: number, y: number, width: number, height: number } | null>(null);
+
+  const checkPassword = () => {
+    // Default password is '1234' if not set in environment
+    const appPassword = process.env.NEXT_PUBLIC_APP_PASSWORD || '1234';
+    if (passwordInput === appPassword) {
+      setIsAuthorized(true);
+      setPasswordError(false);
+    } else {
+      setPasswordError(true);
+    }
+  };
 
   const startSharing = async () => {
     try {
@@ -103,7 +119,6 @@ export default function CaptureComponent() {
 
       if (!ctx) return;
 
-      // Calculate ratios between displayed video and actual video resolution
       const displayWidth = video.clientWidth;
       const displayHeight = video.clientHeight;
       const actualWidth = video.videoWidth;
@@ -113,7 +128,6 @@ export default function CaptureComponent() {
       const scaleY = actualHeight / displayHeight;
 
       if (selection) {
-        // Capture specific region
         canvas.width = selection.width * scaleX;
         canvas.height = selection.height * scaleY;
 
@@ -123,7 +137,6 @@ export default function CaptureComponent() {
           0, 0, canvas.width, canvas.height
         );
       } else {
-        // Capture full frame
         canvas.width = actualWidth;
         canvas.height = actualHeight;
         ctx.drawImage(video, 0, 0, actualWidth, actualHeight);
@@ -142,6 +155,28 @@ export default function CaptureComponent() {
       link.click();
     }
   };
+
+  if (!isAuthorized) {
+    return (
+      <div className="glass-card">
+        <div className="password-box">
+          <h2 style={{ marginBottom: '1rem' }}>🔐 접속을 위해 비밀번호가 필요합니다</h2>
+          <input
+            type="password"
+            className="password-input"
+            placeholder="비밀번호 입력"
+            value={passwordInput}
+            onChange={(e) => setPasswordInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && checkPassword()}
+          />
+          {passwordError && <p style={{ color: '#ef4444' }}>비밀번호가 올바르지 않습니다.</p>}
+          <button className="btn btn-primary" style={{ width: '100%' }} onClick={checkPassword}>
+            입장하기
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -174,7 +209,7 @@ export default function CaptureComponent() {
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
-          style={{ position: 'relative' }}
+          style={{ position: 'relative', cursor: 'crosshair' }}
         >
           <video ref={videoRef} autoPlay playsInline muted />
 
