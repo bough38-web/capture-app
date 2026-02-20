@@ -53,7 +53,7 @@ export default function CaptureComponent() {
     try {
       setError(null);
       const mediaStream = await navigator.mediaDevices.getDisplayMedia({
-        video: { displaySurface: 'window' } as any,
+        video: true, // Allow user to choose Window, Tab, or Entire Screen
         audio: false
       });
       setStream(mediaStream);
@@ -227,10 +227,13 @@ export default function CaptureComponent() {
 
       <div className="drm-tips">
         <h3><span>ℹ️</span> 보안 프로그램(DRM) 관련 안내</h3>
-        <p>엑셀이나 업무 시스템이 <strong>까맣게 나오는 경우</strong>, 아래 설정을 시도해보세요:</p>
+        <p>엑셀이나 업무 시스템이 <strong>까맣게 나오는 경우</strong>, 아래 고급 설정을 시도해보세요:</p>
         <ul style={{ marginLeft: '1.5rem', marginTop: '0.5rem' }}>
-          <li>브라우저(Chrome/Edge) 설정에서 <strong>'가능한 경우 하드웨어 가속 사용'</strong>을 끕니다.</li>
-          <li>전체 화면 캡쳐보다는 <strong>'창(Window)'</strong> 공유 모드를 선택하세요.</li>
+          <li><strong>하드웨어 가속 끄기</strong>: 브라우저(크롬/엣지) 설정에서 '시스템 &gt; 가능한 경우 하드웨어 가속 사용'을 끕니다.</li>
+          <li><strong>공유 모드 변경</strong>: '창(Window)' 공유가 차단된다면, <strong>'전체 화면(Entire Screen)'</strong> 공유를 선택해 보세요.</li>
+          <li><strong>엑셀 자체 가속 끄기</strong>: 엑셀 옵션 &gt; 고급 &gt; 표시 &gt; '하드웨어 그래픽 가속 사용 안 함'을 체크합니다.</li>
+          <li><strong>웹 버전 사용</strong>: 프로그램 대신 <strong>Excel Web (office.com)</strong>으로 파일을 열어 브라우저 탭으로 캡처해 보세요.</li>
+          <li><strong>컴퓨터 재부팅</strong>: 보안 소프트웨어는 설정 변경 후 재부팅이 필요한 경우가 많습니다.</li>
         </ul>
       </div>
     </>
