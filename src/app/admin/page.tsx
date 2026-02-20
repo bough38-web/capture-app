@@ -61,15 +61,29 @@ export default function AdminPage() {
     };
 
     const createLicense = async () => {
-        const res = await fetch('/api/admin/licenses', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
-            body: JSON.stringify(formData),
-        });
-        const data = await res.json();
-        setCreatedKey(data.key);
-        setFormData({ userName: '', email: '', expiresAt: '' });
-        fetchLicenses(adminPassword);
+        setLoading(true);
+        try {
+            const res = await fetch('/api/admin/licenses', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+                body: JSON.stringify(formData),
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                setCreatedKey(data.key);
+                setFormData({ userName: '', email: '', expiresAt: '' });
+                fetchLicenses(adminPassword);
+            } else {
+                alert(`라이센스 발급 실패: ${data.error || '알 수 없는 오류'}`);
+            }
+        } catch (error) {
+            console.error('Error creating license:', error);
+            alert('서버와 통신 중 오류가 발생했습니다.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const copyToClipboard = (text: string, id: string) => {
